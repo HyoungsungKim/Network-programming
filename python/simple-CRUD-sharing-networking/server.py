@@ -1,6 +1,9 @@
 import socket
 import os
 import json
+import concurrent.futures
+from _thread import *
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,8 +45,36 @@ class Server:
         print("Deleting...")
         if key in self.simple_DB:
             del self.simple_DB[key]
+            
+    def _handling_multiconnection(self, max_workers=5):
+        return concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+    
+    def _connect(self, conn, addr):
+        with conn:
+            print("Connected to", addr)            
+            conn.send(b"You are connected to the server")
+            try:
+                while True:
+                    data = conn.recv(1024)
+                    #print("Received data", data)
+                    json_data = json.loads(data.decode())
+                    print("Received json", json_data)
+                    result = self._CRUD_executor(json_data)
+                    if result is None:
+                        conn.send(b"Done!")
+                        print("Done! Current DB data is ", self.simple_DB)                            
+                    else:
+                        conn.send(json.dumps(result, indent=4).encode())
+                        conn.send(b"Done!")
+                        print("Done! Current DB data is ", self.simple_DB)                            
+                        
+            except Exception as e:
+                print(e)
+                conn.close()
+             
+            conn.close()
                 
-    def CRUD_executor(self, json_data):
+    def _CRUD_executor(self, json_data):
         '''
         json example #1
         {
@@ -75,33 +106,27 @@ class Server:
         return CRUD_func(key, value, options)
         
     def connect(self):
+        num_of_thread = 0
         with self._generate_socket() as soc:
-            soc.bind((self.SERVER_IP, self.SERVER_PORT))
-            soc.listen()
-            conn, addr = soc.accept()
-            with conn:
-                print("Connected to", addr)
-                conn.send(b"You are connected to the server")
-                try:
-                    while True:
-                        data = conn.recv(1024)
-                        #print("Received data", data)
-                        json_data = json.loads(data.decode())
-                        print("Received json", json_data)
-                        result = self.CRUD_executor(json_data)
-                        if result is None:
-                            conn.send(b"Done!")
-                            print("Done! Current DB data is ", self.simple_DB)                            
-                        else:
-                            conn.send(json.dumps(result, indent=4).encode())
-                            conn.send(b"Done!")
-                            print("Done! Current DB data is ", self.simple_DB)                            
-                            
-                except Exception as e:
-                    print(e)
-                    # To close easily
-                    conn.close()
-                    soc.close()
+            try:
+                soc.bind((self.SERVER_IP, self.SERVER_PORT))
+                soc.listen(5)
+                print("Listening on", (self.SERVER_IP, self.SERVER_PORT))
+
+                while True:
+                    conn, addr = soc.accept()         
+                    '''
+                    with self._handling_multiconnection() as executor:          
+                        num_of_thread += 1                    
+                        print("number of thread: ", num_of_thread)  
+                        executor.submit(self._connect, conn, addr)
+                    '''                       
+                    num_of_thread += 1                    
+                    print("number of thread: ", num_of_thread)  
+                    start_new_thread(self._connect, (conn, addr))
+            except Exception as e:
+                print(e)
+                soc.close()
                     
 if __name__ == "__main__":
     server = Server()
