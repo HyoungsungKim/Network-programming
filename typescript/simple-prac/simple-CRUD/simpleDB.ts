@@ -1,19 +1,17 @@
-interface Dict {
+export interface Dict {
     [key: string]: any
 }
 
-interface CRUDExecutor {
-    [key:string]: any
-}
+type CRUDExecutor = Dict
 
-interface Message {
+export interface Message {
     header: string, 
     key: string,
     value?: any|undefined,
     options?: Dict|undefined
 }
 
-class SimpleDB {
+export class SimpleDB {
     simpleDB: Dict = {}
 
     constructor(){}
@@ -22,7 +20,7 @@ class SimpleDB {
         this.simpleDB[key] = value
     }
 
-    private read(key: string, value?: any|undefined, options?: Dict|undefined): Dict|any {        
+    private read(key: string, value?: any|undefined, options?: Dict|undefined): Dict {        
         let readOptions = options ?? <Dict>{}
         if (readOptions["readAll"] === true) {
             return this.simpleDB
@@ -46,7 +44,7 @@ class SimpleDB {
         }
     }
 
-    public executor(msg: Message) {   
+    public executor(msg: Message): Dict|undefined {   
         try {            
             /*
             let CRUDSelector: CRUDExecutor = {
@@ -65,9 +63,7 @@ class SimpleDB {
 
             let CRUDFunc = CRUDSelector[msg.header]
             let result = CRUDFunc(msg.key, msg.value, msg.options)
-            return result
-            
-
+            return result           
         } catch(error) {
             console.error((error as Error).message)            
             return undefined
@@ -142,4 +138,5 @@ function testCRUD() {
     testDELETE()
 }
 
-testCRUD()
+//For testing
+//testCRUD()
