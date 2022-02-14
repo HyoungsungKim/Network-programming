@@ -41,7 +41,6 @@ let rl = readline.createInterface({
 })
 
 let waitingConnect = true
-let i = 0
 
 async function main() {
     let message:Message = {
