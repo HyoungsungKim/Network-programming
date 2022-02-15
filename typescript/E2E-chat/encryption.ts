@@ -5,16 +5,23 @@ import * as cryptojs from "crypto-js";
 // Simple Diffie-Hellman key exchange
 // https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 export class DFKeyExchange {
-    primeNumber: number
-    generator: number
     publicKey: number
+    public primeNumber?: number|undefined
+    public generator?: number|undefined
 
-    private privateKey: number
+    private primeBitLength?: number|undefined
+    private privateKey?: number|undefined
     private secretKey: number|undefined = undefined
 
-    constructor(primeBitLength: number = 7, privateKey: number|undefined = undefined) {
-        this.primeNumber = Number(crypto.generatePrimeSync(primeBitLength, {bigint:true}));
-        this.generator = crypto.randomInt(1, this.primeNumber-1)
+    constructor(
+        primeBitLength?: number,
+        privateKey?: number,
+        primeNumber?: number,
+        generator?: number
+        ) {
+        this.primeBitLength = primeBitLength ?? 7;
+        this.primeNumber = primeNumber ?? Number(crypto.generatePrimeSync(this.primeBitLength, {bigint:true}));
+        this.generator = generator ?? crypto.randomInt(1, this.primeNumber-1)
 
         this.privateKey = this.initPrivateKey(privateKey)
         this.publicKey = this.generatePublicKey()
@@ -24,18 +31,17 @@ export class DFKeyExchange {
         return this.privateKey = privateKey ?? crypto.randomInt(1, 2**7)
     }
 
-    private generatePublicKey(): number {
-        return this.publicKey =  this.generator**this.privateKey % this.primeNumber
+    private generatePublicKey(): number {        
+        return this.publicKey =  this.generator!**this.privateKey! % this.primeNumber!
     }
 
     generateSecretKey(receivedPublicKey: number) {
-        this.secretKey = receivedPublicKey**this.privateKey % this.primeNumber
+        this.secretKey = receivedPublicKey**this.privateKey! % this.primeNumber!
     }
 
     getSecretKey() {
         return this.secretKey
     }
-
 }
 
 export function AESencryption(message: string|cryptojs.lib.WordArray, key: string): cryptojs.lib.CipherParams {

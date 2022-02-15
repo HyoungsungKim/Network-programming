@@ -31,37 +31,38 @@ const SERVER_PORT = process.env.SERVER_PORT
 
 const socket:Socket<ListenEvents, EmitEvents> = io(`${SERVER_TYPE}://${SERVER_ADDRESS}:${SERVER_PORT}`)
 
-let alice: DFKeyExchange = new DFKeyExchange()
+let bob: DFKeyExchange
 
 let waitingConnect = true
 let sender: string = "Alice"
 let receiver: string = "Bob"
-let receiverPubkey: Dict = {}
+let receiverPubkey: Dict
 
 socket.on("connect", () => {
-    socket.emit("greetings", "Hello from Alice", "Alice", (ackResponse: string) => {
+    socket.emit("greetings", "Hello from Bob", "Bob", (ackResponse: string) => {
         console.log("From server, ", ackResponse)
     })
 })
 
 // When Bob send ack to Alice, Alice send back Alice's public key to Bob
 socket.on("DFKeyExchangeAck", (to: string, publicKey: number) => {
-    console.log("Succeeded in handshake")
-    alice.generateSecretKey(publicKey)
-    //console.log(alice.getSecretKey())
+    receiverPubkey[to] = publicKey
 })
 
 // It is only used when Bob send initial syn
 // When Bob send syn to Alice, Alice send back ack to Bob
-socket.on("DFKeyExchangeSyn", (from: string, _, primeNumber: number, generator: number) => {
-    if (!alice) {
-        alice = new DFKeyExchange(primeNumber=primeNumber, generator=generator)
+socket.on("DFKeyExchangeSyn", (from: string, to: string, primeNumber: number, generator: number) => {
+    console.log(`${to} received syn from ${from}`)
+
+    if (!bob) {
+        bob = new DFKeyExchange(undefined, undefined, primeNumber=primeNumber, generator=generator)
     }
-    socket.emit("DFKeyExchangeAck", from, alice.publicKey)
+    socket.emit("DFKeyExchangeAck", from, bob.publicKey)
+    console.log(`${to} send back ack to ${from}`)
 })
 
 socket.on("serverMessage", (_, message: string) => {
-    console.log(`${receiver}: ${message}`)
+    console.log(`${sender}: ${message}`)
 })
 
 let rl = readline.createInterface({
@@ -69,43 +70,35 @@ let rl = readline.createInterface({
     output: process.stdout
 })
 
-async function main() {   
-    const delay = () => new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Wait connection
-    await delay()
-
-    // Wait ack until generating secret key
-    const initHandshake = async (): Promise<void> => {
-        return new Promise((resolve, reject) => {
-            rl.question(`Ready to handshake[y/n]?`, (message:string) => {
-                if (message === 'y') {
-                    console.log("Start handshake")
-                    socket.emit("DFKeyExchangeSyn", sender, receiver, alice.primeNumber!, alice.generator!)
-                }
-                resolve()
-            })
-       })
+async function main() {
+    if (waitingConnect) {
+        waitingConnect = false
+        await new Promise(resolve => setTimeout(resolve, 1000))
     }
 
-    const sendMessage = async (): Promise<void> => {
-        return new Promise((resolve, reject) => {
-            rl.question(`${sender}: `, (message: string) => {
-                socket.emit("clientMessage", receiver, message)
-                resolve()
-            })
-        })        
+    /*
+    const initHandshake = () => {
+       socket.emit("DFKeyExchangeSyn", sender, receiver, bob.primeNumber, bob.generator)
+    }
+    initHandshake()
+    */
+    console.log("Request to generate secret key")
+    // Wait until generating secret key
+    /*
+    while (!(bob.getSecretKey())) {
+        initHandshake()
+    }
+    */
+    //console.log("Secret key is generated")
+
+    const sendMessage = () => {
+        rl.question(`${sender}: `, (message: string) => {
+            socket.emit("clientMessage", receiver, message)
+        })
+
+        sendMessage()
     }
 
-    const continuousChat = async () => {
-        await sendMessage()
-        continuousChat()
-    }
-
-    await initHandshake()
-            .then(delay)    // Wait handshake
-            .then(continuousChat)
 }
 
 main()
-
