@@ -1,7 +1,6 @@
 import * as crypto from 'crypto';
 import * as cryptojs from "crypto-js";
 
-
 // Simple Diffie-Hellman key exchange
 // https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 export class DFKeyExchange {
@@ -19,7 +18,7 @@ export class DFKeyExchange {
         primeNumber?: number,
         generator?: number
         ) {
-        this.primeBitLength = primeBitLength ?? 7;
+        this.primeBitLength = primeBitLength ?? 4;
         this.primeNumber = primeNumber ?? Number(crypto.generatePrimeSync(this.primeBitLength, {bigint:true}));
         this.generator = generator ?? crypto.randomInt(1, this.primeNumber-1)
 
@@ -28,7 +27,7 @@ export class DFKeyExchange {
     }
 
     private initPrivateKey(privateKey?: number|undefined): number {
-        return this.privateKey = privateKey ?? crypto.randomInt(1, 2**7)
+        return this.privateKey = privateKey ?? crypto.randomInt(1, 2**this.primeBitLength!)
     }
 
     private generatePublicKey(): number {        

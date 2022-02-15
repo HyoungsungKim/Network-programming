@@ -48,7 +48,8 @@ socket.on("connect", () => {
 socket.on("DFKeyExchangeAck", (to: string, publicKey: number) => {
     console.log("Succeeded in handshake")
     alice.generateSecretKey(publicKey)
-    //console.log(alice.getSecretKey())
+    console.log("Secret key: ", alice.getSecretKey())
+    socket.emit("DFKeyExchangeAck", "Bob", alice.publicKey)
 })
 
 // It is only used when Bob send initial syn

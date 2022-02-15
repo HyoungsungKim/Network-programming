@@ -46,7 +46,8 @@ socket.on("connect", () => {
 
 // When Bob send ack to Alice, Alice send back Alice's public key to Bob
 socket.on("DFKeyExchangeAck", (to: string, publicKey: number) => {
-    receiverPubkey[to] = publicKey
+    bob.generateSecretKey(publicKey)    
+    console.log("Secret key: ", bob.getSecretKey())
 })
 
 // It is only used when Bob send initial syn
@@ -91,14 +92,21 @@ async function main() {
     */
     //console.log("Secret key is generated")
 
-    const sendMessage = () => {
-        rl.question(`${sender}: `, (message: string) => {
-            socket.emit("clientMessage", receiver, message)
-        })
-
-        sendMessage()
+    const sendMessage = async (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            rl.question(`${receiver}: `, (message: string) => {
+                socket.emit("clientMessage", sender, message)
+                resolve()
+            })
+        })        
     }
 
+    const continuousChat = async () => {
+        await sendMessage()
+        continuousChat()
+    }
+
+    await continuousChat()
 }
 
 main()
