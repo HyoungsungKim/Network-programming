@@ -18,7 +18,7 @@ export class DFKeyExchange {
         primeNumber?: number,
         generator?: number
         ) {
-        this.primeBitLength = primeBitLength ?? 4;
+        this.primeBitLength = primeBitLength ?? 7;
         this.primeNumber = primeNumber ?? Number(crypto.generatePrimeSync(this.primeBitLength, {bigint:true}));
         this.generator = generator ?? crypto.randomInt(1, this.primeNumber-1)
 
@@ -31,11 +31,12 @@ export class DFKeyExchange {
     }
 
     private generatePublicKey(): number {        
-        return this.publicKey =  this.generator!**this.privateKey! % this.primeNumber!
+        return this.publicKey = modular(this.generator!, this.privateKey!, this.primeNumber!)
     }
 
     generateSecretKey(receivedPublicKey: number) {
-        this.secretKey = receivedPublicKey**this.privateKey! % this.primeNumber!
+        //this.secretKey = receivedPublicKey**this.privateKey! % this.primeNumber!
+        this.secretKey = modular(receivedPublicKey, this.privateKey!, this.primeNumber!)
     }
 
     getSecretKey() {
@@ -43,10 +44,19 @@ export class DFKeyExchange {
     }
 }
 
-export function AESencryption(message: string|cryptojs.lib.WordArray, key: string): cryptojs.lib.CipherParams {
+function modular(base: number, exp: number, numerator: number): number {
+    let init: number = 1
+    for (let i = 0; i < exp; i++) {
+        init = ((init % numerator) * (base % numerator) % numerator)
+    }
+
+    return init
+}
+
+export function AESencryption(message: string, key: string): cryptojs.lib.CipherParams {
     return cryptojs.AES.encrypt(message, key)
 }
 
-export function AESdecryption(encryptedMessage: cryptojs.lib.CipherParams, key: string): string|cryptojs.lib.WordArray {
+export function AESdecryption(encryptedMessage: string, key: string): string|cryptojs.lib.WordArray {
     return cryptojs.AES.decrypt(encryptedMessage, key)
 }

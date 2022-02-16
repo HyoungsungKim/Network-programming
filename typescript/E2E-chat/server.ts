@@ -1,5 +1,6 @@
 import {createServer} from "http"
 import {Server} from "socket.io"
+import type * as cryptojs from "crypto-js"
 
 import "dotenv/config"
 
@@ -58,6 +59,7 @@ io.on("connection", (socket) => {
     })
 
     socket.on("clientMessage", (to: string, message: string) => {
+        console.log(message.toString())
         socket.to(userAddress[to]).emit("serverMessage", to, message)
     })
 })

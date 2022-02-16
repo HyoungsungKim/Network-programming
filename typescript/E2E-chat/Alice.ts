@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client"
+import * as cryptojs from "crypto-js"
 import {DFKeyExchange, AESencryption, AESdecryption} from "./encryption"
 import * as readline from "readline"
 
@@ -33,23 +34,21 @@ const socket:Socket<ListenEvents, EmitEvents> = io(`${SERVER_TYPE}://${SERVER_AD
 
 let alice: DFKeyExchange = new DFKeyExchange()
 
-let waitingConnect = true
 let sender: string = "Alice"
 let receiver: string = "Bob"
-let receiverPubkey: Dict = {}
 
 socket.on("connect", () => {
-    socket.emit("greetings", "Hello from Alice", "Alice", (ackResponse: string) => {
+    socket.emit("greetings", "Hello from Alice", sender, (ackResponse: string) => {
         console.log("From server, ", ackResponse)
     })
 })
 
-// When Bob send ack to Alice, Alice send back Alice's public key to Bob
-socket.on("DFKeyExchangeAck", (to: string, publicKey: number) => {
+// When Alice gets ack from Bob, Alice send back ack to Bob with public Key
+socket.on("DFKeyExchangeAck", (_, publicKey: number) => {
     console.log("Succeeded in handshake")
     alice.generateSecretKey(publicKey)
     console.log("Secret key: ", alice.getSecretKey())
-    socket.emit("DFKeyExchangeAck", "Bob", alice.publicKey)
+    socket.emit("DFKeyExchangeAck", receiver, alice.publicKey)
 })
 
 // It is only used when Bob send initial syn
@@ -61,8 +60,9 @@ socket.on("DFKeyExchangeSyn", (from: string, _, primeNumber: number, generator: 
     socket.emit("DFKeyExchangeAck", from, alice.publicKey)
 })
 
-socket.on("serverMessage", (_, message: string) => {
-    console.log(`${receiver}: ${message}`)
+socket.on("serverMessage", (to: string, message: string) => {
+    message = AESdecryption(message, alice.getSecretKey()!.toString()).toString(cryptojs.enc.Utf8)
+    console.log(`${receiver} sent message to ${to}: ${message}`)
 })
 
 let rl = readline.createInterface({
@@ -92,7 +92,8 @@ async function main() {
     const sendMessage = async (): Promise<void> => {
         return new Promise((resolve, reject) => {
             rl.question(`${sender}: `, (message: string) => {
-                socket.emit("clientMessage", receiver, message)
+                let encryptedMessage = AESencryption(message, alice.getSecretKey()!.toString()).toString()
+                socket.emit("clientMessage", receiver, encryptedMessage)
                 resolve()
             })
         })        

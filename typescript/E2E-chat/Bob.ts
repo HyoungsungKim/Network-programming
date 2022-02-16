@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client"
+import * as cryptojs from "crypto-js"
 import {DFKeyExchange, AESencryption, AESdecryption} from "./encryption"
 import * as readline from "readline"
 
@@ -36,16 +37,15 @@ let bob: DFKeyExchange
 let waitingConnect = true
 let sender: string = "Alice"
 let receiver: string = "Bob"
-let receiverPubkey: Dict
 
 socket.on("connect", () => {
-    socket.emit("greetings", "Hello from Bob", "Bob", (ackResponse: string) => {
+    socket.emit("greetings", "Hello from Bob", receiver, (ackResponse: string) => {
         console.log("From server, ", ackResponse)
     })
 })
 
 // When Bob send ack to Alice, Alice send back Alice's public key to Bob
-socket.on("DFKeyExchangeAck", (to: string, publicKey: number) => {
+socket.on("DFKeyExchangeAck", (_, publicKey: number) => {
     bob.generateSecretKey(publicKey)    
     console.log("Secret key: ", bob.getSecretKey())
 })
@@ -62,8 +62,9 @@ socket.on("DFKeyExchangeSyn", (from: string, to: string, primeNumber: number, ge
     console.log(`${to} send back ack to ${from}`)
 })
 
-socket.on("serverMessage", (_, message: string) => {
-    console.log(`${sender}: ${message}`)
+socket.on("serverMessage", (to: string, message: string) => {
+    message = AESdecryption(message, bob.getSecretKey()!.toString()).toString(cryptojs.enc.Utf8)
+    console.log(`${sender} send message to ${to}: ${message}`)
 })
 
 let rl = readline.createInterface({
@@ -77,25 +78,13 @@ async function main() {
         await new Promise(resolve => setTimeout(resolve, 1000))
     }
 
-    /*
-    const initHandshake = () => {
-       socket.emit("DFKeyExchangeSyn", sender, receiver, bob.primeNumber, bob.generator)
-    }
-    initHandshake()
-    */
     console.log("Request to generate secret key")
-    // Wait until generating secret key
-    /*
-    while (!(bob.getSecretKey())) {
-        initHandshake()
-    }
-    */
-    //console.log("Secret key is generated")
 
     const sendMessage = async (): Promise<void> => {
         return new Promise((resolve, reject) => {
             rl.question(`${receiver}: `, (message: string) => {
-                socket.emit("clientMessage", sender, message)
+                let encryptedMessage = AESencryption(message, bob.getSecretKey()!.toString()).toString()
+                socket.emit("clientMessage", sender, encryptedMessage)
                 resolve()
             })
         })        
