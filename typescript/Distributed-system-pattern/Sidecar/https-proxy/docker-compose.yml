@@ -1,0 +1,60 @@
+version: "3.7"
+
+services:
+  legacy_server:
+    build: ./server/.
+    networks:
+      server_network:
+        ipv4_address: 172.28.0.1
+    ports:
+      - 3010:3010
+    environment:
+      SERVER_PORT: 3010
+      SERVER_ADDRESS: 172.28.0.1
+
+    command: ts-node ./http-server.ts
+
+  proxy_server:
+    build: ./server/.
+    networks:
+      server_network:
+        ipv4_address: 172.28.0.2
+      client_network:
+        ipv4_address: 172.29.0.2
+    ports:
+      - 3000:3000
+    depends_on:
+      - legacy_server
+    links:
+      - "legacy_server"
+    environment:
+      SERVER_PORT: 3010
+      SERVER_ADDRESS: 172.28.0.1
+      PROXY_SERVER_PORT: 3000
+      PROXY_SERVER_ADDRESS: 172.29.0.2
+    command: ts-node ./https-proxy.ts    
+  
+  client: 
+    build: ./client/.
+    networks:
+      - client_network
+    depends_on:
+      - proxy_server
+    environment:
+      SERVER_PORT: 3000
+      SERVER_ADDRESS: 172.29.0.2
+    command: ts-node ./client.ts
+
+networks:
+  server_network:
+    #external: true
+    ipam:
+      config:
+        - gateway: 172.28.1.1
+          subnet: 172.28.0.0/16
+  client_network:
+    #external: true
+    ipam:
+      config:
+        - gateway: 172.29.1.1
+          subnet: 172.29.0.0/16
