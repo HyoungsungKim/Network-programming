@@ -11,8 +11,9 @@ interface EmitEvents {
 }
 
 const SERVER_TYPE = "http"
-const SERVER_ADDRESS = "127.0.0.1"
-const SERVER_PORT = 3000;
+const SERVER_PORT = isNaN(Number(process.env.SERVER_PORT)) ? 3010 : Number(process.env.SERVER_PORT)
+const SERVER_ADDRESS = process.env.SERVER_ADDRESS ?? "127.0.0.1"
+
 
 const socket:Socket<ListenEvents, EmitEvents> = io(`${SERVER_TYPE}://${SERVER_ADDRESS}:${SERVER_PORT}`)
 

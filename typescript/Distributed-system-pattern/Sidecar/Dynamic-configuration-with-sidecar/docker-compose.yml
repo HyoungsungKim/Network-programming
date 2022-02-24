@@ -1,0 +1,36 @@
+version: "3.7"
+
+services:
+  legacy_server:
+    build: ./legacy-server/.
+    networks:
+      - server_network
+    ports: 
+      - 3000:3000
+    environment:
+      SERVER_PORT: 3000
+      SERVER_ADDRESS: 172.30.0.1
+    volumes:
+      - ./sharedFileSystem:/app/sharedFileSystem
+    command: ts-node ./legacy-application-server.ts
+
+  config-manager:
+    build: ./config-manager/.
+    networks:
+      - server_network
+    environment:
+      SERVER_PORT: 3000
+      SERVER_ADDRESS: 172.30.0.1
+    volumes:
+      - ./sharedFileSystem:/app/sharedFileSystem
+      - ./keystore:/app/keystore
+    depends_on:
+      - legacy_server
+    command: ts-node ./config-manager-sidecar.ts
+
+networks:
+  server_network:
+    ipam:
+      config:
+        - gateway: 172.30.1.1
+          subnet: 172.30.0.0/16
